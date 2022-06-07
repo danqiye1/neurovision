@@ -9,7 +9,7 @@ class MNIST(object):
     MNIST dataset for loading and generating data for Nengo.
     """
 
-    def __init__(self, path="/mnt/hdd/dq/mnist.npz", training=True):
+    def __init__(self, path="mnist.npz", training=True):
         """ Load or download dataset from/to path """
 
         # Load data
