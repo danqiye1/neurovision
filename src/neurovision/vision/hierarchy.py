@@ -75,7 +75,7 @@ def train_network(net, X_train, y_train, epochs=10, batch_size=200):
     )
 
     sim.fit(X_train, {out_p: y_train}, epochs=epochs)
-    return sim
+    sim.close()
     
 
 if __name__ == "__main__":
