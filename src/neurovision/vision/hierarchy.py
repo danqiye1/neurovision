@@ -44,7 +44,7 @@ def build_visual_hierarchy(shape_in, size_out):
 
     return net
 
-def train_network(net, X_train, y_train, epochs=10, batch_size=200):
+def train_network(net, X_train, y_train, epochs=10, batch_size=200, save_as="weights"):
     """
     Train the Nengo neural network leveraging on Tensorflow.
 
@@ -57,6 +57,7 @@ def train_network(net, X_train, y_train, epochs=10, batch_size=200):
 
     :param epochs: Number of training epochs.
     :param batch_size: Minibatch size.
+    :param save_as: Relative file path to save weights.
     """
     # Handle on output
     output = net.nodes[-1]
@@ -75,10 +76,48 @@ def train_network(net, X_train, y_train, epochs=10, batch_size=200):
     )
 
     sim.fit(X_train, {out_p: y_train}, epochs=epochs)
+    sim.save_params(save_as)
     sim.close()
+
+def eval_network(net, X_test, y_test, batch_size=200, load_from="weights"):
+    """
+    Evaluate the Nengo neural network trained by Tensorflow.
+
+    :param net: Nengo network to evaluate.
+    :type net: nengo.Network
+    :param X_test: Test data of shape (N, D)
+    :type X_test: np.ndarray
+    :param y_test: Test labels (N, 1). Not one-hot-encoded.
+    :type y_test: np.ndarray
+
+    :param batch_size: Minibatch size.
+    :param load_from: Relative file path to save weights.
+    """
+    # Handle on output
+    output = net.nodes[-1]
+    assert output.label == "output", \
+        f"Last node in {net.label} is f{output.label} instead of 'output'. \
+            Check if last node is output node."
+    
+    # Add a filtered probe
+    with net:
+        out_p = nengo.Probe(output, synapse=0.1, label="out_p_filt")
+    
+    # Accuracy function
+    classification_accuracy = lambda y_true, y_pred: tf.metrics.sparse_categorical_accuracy(y_true[:, -1], y_pred[:, -1])
+
+    # Create simulator, load weights and evaluate
+    sim = nengo_dl.Simulator(net, minibatch_size=batch_size)
+    sim.load_params(load_from)
+    sim.compile(loss={out_p: classification_accuracy})
+    accuracy = sim.evaluate(X_test, {out_p: y_test}, verbose=0)["loss"]
+    sim.close()
+
+    return accuracy
     
 
 if __name__ == "__main__":
+    # Sample code to test building, training, and evaluation function.
     # Load and preprocess data
     (X_train, y_train), (X_test, y_test) = tf.keras.datasets.mnist.load_data()
     shape = X_train.shape
@@ -95,3 +134,8 @@ if __name__ == "__main__":
     # Build network and train
     net = build_visual_hierarchy((28,28,1), 10)
     train_network(net, X_train, y_train)
+
+    # Evaluate the network
+    accuracy = eval_network(net, X_test, y_test)
+    print("")
+    print("Accuracy: %.3f" % accuracy)
