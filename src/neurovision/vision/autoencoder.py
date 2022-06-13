@@ -25,14 +25,14 @@ def build_autoencoder(X_train, n_hidden):
             n_neurons=500,
             dimensions=n_hidden
         )
-        nengo.Connection(input, hidden)
+        nengo.Connection(input, hidden, transform=np.random.random((n_hidden, size_in)))
 
         # Output layer for reconstruction
         out_layer = nengo.Ensemble(
             n_neurons=1000,
             dimensions=size_in
         )
-        conn = nengo.Connection(hidden, out_layer, eval_points=X_train, function=X_train)
+        conn = nengo.Connection(hidden, out_layer, transform=np.random.random((size_in, n_hidden)), eval_points=X_train, function=X_train)
         conn.learning_rule_type = nengo.PES()
         
         # Ensemble to compute reconstruction error
