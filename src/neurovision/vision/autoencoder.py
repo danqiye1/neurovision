@@ -44,7 +44,7 @@ def build_autoencoder(X, n_hidden, n_neurons=1000):
 
         # Hidden layer
         hidden = nengo.Ensemble(
-            n_neurons=500,
+            n_neurons=n_neurons,
             dimensions=n_hidden
         )
 
