@@ -6,44 +6,85 @@ Author: Ye Danqi
 import nengo
 import numpy as np
 import tensorflow as tf
+from nengo_extras.vision import Gabor, Mask
 
-from pdb import set_trace as bp
+def build_autoencoder(X, n_hidden, n_neurons=1000):
+    """
+    Build an autoencoder for a images.
 
-def build_autoencoder(X_train, n_hidden):
+    :param X: input data
+    :type X: numpy.ndarray (n_samples, H, W)
+    :param n_hidden: dimensionality of hidden layer
+    :type n_hidden: int
+    """
+    img_shape = X.shape[1:]
+    X_train = X.reshape(len(X), -1)
+    size_in = X_train.shape[-1]
+
     with nengo.Network(label="Autoencoder") as net:
-        # Default parameters for all neurons
-        net.config[nengo.Ensemble].max_rates = nengo.dists.Choice([100])
-        net.config[nengo.Ensemble].intercepts = nengo.dists.Choice([0])
-        net.config[nengo.Connection].synapse = None
-
         # Build the neural network
-        size_in = X_train.shape[-1]
-        input = nengo.Node(np.zeros(size_in), label="Input")
+        input = nengo.Node(lambda t: X_train[int(t), :], label="Input")
 
-        # Hidden layer for dimension reduction
+        # Encoders are used as transforms for dimension reduction
+        encoders = Mask(img_shape).populate(
+            Gabor().generate(64, (11,11)),
+            flatten=True
+        )
+        # Decoder transforms/weights for reconstruction
+        decoders = Mask(img_shape).populate(
+            Gabor().generate(64, (11,11)),
+            flatten=True
+        ).T
+
+        # Ensemble to represent input
+        in_ensemble = nengo.Ensemble(
+            n_neurons=n_neurons,
+            dimensions=size_in
+        )
+
+        # Hidden layer
         hidden = nengo.Ensemble(
             n_neurons=500,
             dimensions=n_hidden
         )
-        nengo.Connection(input, hidden, transform=np.random.random((n_hidden, size_in)))
 
-        # Output layer for reconstruction
-        out_layer = nengo.Ensemble(
-            n_neurons=1000,
+        # Ensemble to represent reconstruction
+        out_ensemble = nengo.Ensemble(
+            n_neurons=n_neurons,
             dimensions=size_in
         )
-        conn = nengo.Connection(hidden, out_layer, transform=np.random.random((size_in, n_hidden)), eval_points=X_train, function=X_train)
-        conn.learning_rule_type = nengo.PES()
+
+        nengo.Connection(input, in_ensemble)
+        conn1 = nengo.Connection(
+            in_ensemble, hidden, 
+            transform=encoders,
+            learning_rule_type=nengo.PES()
+        )
+        conn2 = nengo.Connection(
+            hidden, out_ensemble,
+            transform=decoders,
+            learning_rule_type=nengo.PES()
+        )
         
         # Ensemble to compute reconstruction error
-        recon_error = nengo.Ensemble(100, dimensions=1)
+        recon_error = nengo.Ensemble(n_neurons=n_neurons, dimensions=size_in)
+
+        # Error signal connections
         nengo.Connection(input, recon_error, transform=-1)
-        nengo.Connection(out_layer, recon_error)
-        nengo.Connection(recon_error, conn.learning_rule, function=lambda x: np.sum(np.square(x)))
+        nengo.Connection(out_ensemble, recon_error)
+        nengo.Connection(
+            recon_error, conn1.learning_rule, 
+            function=lambda x: np.sum(np.square(x)) * np.ones(n_hidden)
+        )
+        nengo.Connection(
+            recon_error, conn2.learning_rule, 
+            function=lambda x: np.sum(np.square(x)) * np.ones(size_in)
+        )
 
     return net
 
 if __name__=="__main__":
     (X_train, y_train), (X_test, y_test) = tf.keras.datasets.mnist.load_data()
-    net = build_autoencoder(X_train.reshape(len(X_train), -1), 64)
-    bp()
+    net = build_autoencoder(X_train, 64)
+    with nengo.Simulator(net) as sim:
+        sim.run(20)
