@@ -27,12 +27,12 @@ def build_autoencoder(X, n_hidden, n_neurons=1000):
 
         # Encoders are used as transforms for dimension reduction
         encoders = Mask(img_shape).populate(
-            Gabor().generate(64, (11,11)),
+            Gabor().generate(n_hidden, (11,11)),
             flatten=True
         )
         # Decoder transforms/weights for reconstruction
         decoders = Mask(img_shape).populate(
-            Gabor().generate(64, (11,11)),
+            Gabor().generate(n_hidden, (11,11)),
             flatten=True
         ).T
 
