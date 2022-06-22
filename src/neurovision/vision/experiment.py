@@ -81,13 +81,11 @@ with model:
     nengo.Connection(out_ensemble, recon_error)
     nengo.Connection(input, recon_error, transform=-1)
     nengo.Connection(
-        recon_error, conn1.learning_rule, 
-        function=lambda x: np.sum(np.square(x)) * np.ones(hidden_dim)
+        recon_error, conn2.learning_rule
     )
-    nengo.Connection(
-        recon_error, conn2.learning_rule,
-        function=lambda x: np.sum(np.square(x)) * np.ones(X_train.shape[1])
-    )
+
+    error_disp_node = nengo.Node(size_in=1)
+    nengo.Connection(recon_error, error_disp_node, function=lambda x: np.sum(np.square(x)))
 
     # Input image display (for nengo_gui)
     image_shape = (1, 28, 28)
