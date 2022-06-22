@@ -12,6 +12,7 @@ Current problems:
 import nengo
 import numpy as np
 import tensorflow as tf
+from nengo_extras.gui import image_display_function
 from nengo_extras.vision import Gabor, Mask
 
 model = nengo.Network()
@@ -20,7 +21,8 @@ rng = np.random.RandomState(9)
 
 (X_train, y_train), (X_test, y_test) = tf.keras.datasets.mnist.load_data()
 X_train = X_train.reshape(len(X_train), -1)
-n_neurons=1000
+n_neurons = 1000
+hidden_dim = 392
 
 with model:
     model.config[nengo.Ensemble].max_rates = nengo.dists.Choice([100])
@@ -31,13 +33,13 @@ with model:
     
     # Encoders are used as transforms for dimension reduction
     encoders = Mask((28,28)).populate(
-        Gabor().generate(64, (11,11), rng=rng),
+        Gabor().generate(hidden_dim, (11,11), rng=rng),
         rng=rng, 
         flatten=True
     )
     # Decoder transforms/weights for reconstruction
     decoders = Mask((28, 28)).populate(
-        Gabor().generate(64, (11,11), rng=rng),
+        Gabor().generate(hidden_dim, (11,11), rng=rng),
         rng=rng,
         flatten=True
     )
@@ -49,7 +51,7 @@ with model:
 
     hidden = nengo.Ensemble(
         n_neurons=n_neurons,
-        dimensions=64
+        dimensions=hidden_dim
     )
 
     out_ensemble = nengo.Ensemble(
@@ -57,6 +59,7 @@ with model:
         dimensions=X_train.shape[1]
     )
     
+    # Feedforward connections
     nengo.Connection(input, in_ensemble)
     conn1 = nengo.Connection(
         in_ensemble, hidden, 
@@ -69,6 +72,8 @@ with model:
         learning_rule_type=nengo.PES()
     )
     
+    # Error signal calculation
+    # and error signal connection
     recon_error = nengo.Ensemble(
         n_neurons=n_neurons,
         dimensions=X_train.shape[1]
@@ -77,11 +82,20 @@ with model:
     nengo.Connection(input, recon_error, transform=-1)
     nengo.Connection(
         recon_error, conn1.learning_rule, 
-        function=lambda x: np.sum(np.square(x)) * np.ones(64)
+        function=lambda x: np.sum(np.square(x)) * np.ones(hidden_dim)
     )
     nengo.Connection(
         recon_error, conn2.learning_rule,
         function=lambda x: np.sum(np.square(x)) * np.ones(X_train.shape[1])
     )
+
+    # Input image display (for nengo_gui)
+    image_shape = (1, 28, 28)
+    display_func = image_display_function(image_shape, offset=1, scale=128)
+    display_node = nengo.Node(display_func, size_in=input.size_out)
+    nengo.Connection(input, display_node, synapse=None)
+
+    output = nengo.Node(display_func, size_in=X_train.shape[1])
+    nengo.Connection(out_ensemble, output, synapse=None)
     
     
