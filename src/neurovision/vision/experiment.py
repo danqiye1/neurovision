@@ -78,8 +78,8 @@ with model:
         n_neurons=n_neurons,
         dimensions=X_train.shape[1]
     )
-    nengo.Connection(out_ensemble, recon_error)
-    nengo.Connection(input, recon_error, transform=-1)
+    nengo.Connection(out_ensemble, recon_error, transform=-1)
+    nengo.Connection(input, recon_error)
     nengo.Connection(
         recon_error, conn2.learning_rule
     )

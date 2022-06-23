@@ -6,6 +6,7 @@ Author: Ye Danqi
 import nengo
 import numpy as np
 import tensorflow as tf
+from matplotlib import pyplot as plt
 from nengo_extras.vision import Gabor, Mask
 
 def build_autoencoder(X, n_hidden, n_neurons=1000):
@@ -89,13 +90,32 @@ def build_autoencoder(X, n_hidden, n_neurons=1000):
     return net
 
 if __name__=="__main__":
-    from pdb import set_trace as bp
     (X_train, y_train), (X_test, y_test) = tf.keras.datasets.mnist.load_data()
     net = build_autoencoder(X_train, 64)
     
     # Add some probes
+    input = net.nodes[0]
+    output = net.ensembles[-2]
+    error = net.ensembles[-1]
     with net:
-        bp()
+        in_probe = nengo.Probe(input, synapse=0.01)
+        out_probe = nengo.Probe(output, synapse=0.01)
+        err_probe = nengo.Probe(error, synapse=0.01)
 
     with nengo.Simulator(net) as sim:
         sim.run(20)
+
+    plt.figure()
+    plt.plot(sim.trange(), sim.data[in_probe])
+    plt.savefig("input.png")
+    plt.close()
+
+    plt.figure()
+    plt.plot(sim.trange(), sim.data[out_probe])
+    plt.savefig("output.png")
+    plt.close()
+
+    plt.figure()
+    plt.plot(sim.trange(), sim.data[err_probe])
+    plt.savefig("error.png")
+    plt.close()
