@@ -51,23 +51,28 @@ def build_autoencoder(X, n_hidden, n_neurons=1000):
         # Ensemble to represent reconstruction
         out_ensemble = nengo.Ensemble(
             n_neurons=n_neurons,
-            dimensions=size_in
+            dimensions=size_in,
+            label="Output"
         )
 
         nengo.Connection(input, in_ensemble)
         conn1 = nengo.Connection(
             in_ensemble, hidden, 
             transform=encoders,
-            learning_rule_type=nengo.PES()
+            learning_rule_type=nengo.PES(learning_rate=0.001)
         )
         conn2 = nengo.Connection(
             hidden, out_ensemble,
             transform=decoders,
-            learning_rule_type=nengo.PES()
+            learning_rule_type=nengo.PES(learning_rate=0.001)
         )
         
         # Ensemble to compute reconstruction error
-        recon_error = nengo.Ensemble(n_neurons=n_neurons, dimensions=size_in)
+        recon_error = nengo.Ensemble(
+            n_neurons=n_neurons, 
+            dimensions=size_in,
+            label="Error"
+        )
 
         # Error signal connections
         nengo.Connection(input, recon_error, transform=-1)
@@ -84,7 +89,13 @@ def build_autoencoder(X, n_hidden, n_neurons=1000):
     return net
 
 if __name__=="__main__":
+    from pdb import set_trace as bp
     (X_train, y_train), (X_test, y_test) = tf.keras.datasets.mnist.load_data()
     net = build_autoencoder(X_train, 64)
+    
+    # Add some probes
+    with net:
+        bp()
+
     with nengo.Simulator(net) as sim:
         sim.run(20)
