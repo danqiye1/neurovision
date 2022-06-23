@@ -63,8 +63,7 @@ with model:
     nengo.Connection(input, in_ensemble)
     conn1 = nengo.Connection(
         in_ensemble, hidden, 
-        transform=encoders, 
-        learning_rule_type=nengo.PES()
+        transform=encoders,
     )
     conn2 = nengo.Connection(
         hidden, out_ensemble, 
