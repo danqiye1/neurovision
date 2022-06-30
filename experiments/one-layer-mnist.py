@@ -12,29 +12,19 @@ input_size = X_train[0].reshape(-1).shape[0]
 hidden_dim = input_size // 2
 
 def preprocess(X):
-    # Preprocess data to nengo node input
-    X = X.reshape(-1) / 255
-    mean = np.mean(X)
-    std = np.std(X)
-    return (X - mean)/std
-
-# mean = np.mean(X_train)
-# std = np.std(X_train)
-# X_train_norm = preprocess(X_train)
-
-# def unnormalize(X, mean, std):
-#     return X * std + mean
+    # Preprocess data to nengo node input to unit vectors
+    X = X.reshape(-1)
+    return X / np.linalg.norm(X)
 
 # Building the network
 model = nengo.Network(label="mnist")
-solver = nengo.solvers.LstsqL2(reg=0.01)
 
 with model:
-    vision_input = nengo.Node(lambda t: preprocess(X_train[int(t) // 10]), label="Visual Input")
+    vision_input = nengo.Node(lambda t: preprocess(X_train[int(t) // 2]), label="Visual Input")
     input_ensemble = nengo.Ensemble(
         n_neurons=n_neurons,
         dimensions=input_size,
-        radius=40
+        radius=1
     )
     nengo.Connection(
         vision_input, input_ensemble
