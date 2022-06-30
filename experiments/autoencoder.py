@@ -21,7 +21,6 @@ rng = np.random.RandomState(9)
 
 (X_train, y_train), (X_test, y_test) = tf.keras.datasets.mnist.load_data()
 X_train = X_train.reshape(len(X_train), -1)
-n_neurons = 1000
 hidden_dim = 392
 
 with model:
@@ -44,29 +43,31 @@ with model:
         flatten=True
     )
     
-    in_ensemble = nengo.Ensemble(
-        n_neurons=n_neurons,
-        dimensions=X_train.shape[1]
+    in_ensemble = nengo.networks.EnsembleArray(
+        n_neurons=30,
+        n_ensembles=X_train.shape[1],
+        ens_dimensions=1
     )
 
     hidden = nengo.Ensemble(
-        n_neurons=n_neurons,
+        n_neurons=100,
         dimensions=hidden_dim
     )
 
-    out_ensemble = nengo.Ensemble(
-        n_neurons=n_neurons,
-        dimensions=X_train.shape[1]
+    out_ensemble = nengo.networks.EnsembleArray(
+        n_neurons=30,
+        n_ensembles=X_train.shape[1],
+        ens_dimensions=1
     )
     
     # Feedforward connections
-    nengo.Connection(input, in_ensemble)
+    nengo.Connection(input, in_ensemble.input)
     conn1 = nengo.Connection(
-        in_ensemble, hidden, 
+        in_ensemble.output, hidden, 
         transform=encoders,
     )
     conn2 = nengo.Connection(
-        hidden, out_ensemble, 
+        hidden, out_ensemble.input, 
         transform=decoders.T,
         learning_rule_type=nengo.PES()
     )
@@ -74,10 +75,10 @@ with model:
     # Error signal calculation
     # and error signal connection
     recon_error = nengo.Ensemble(
-        n_neurons=n_neurons,
+        n_neurons=784,
         dimensions=X_train.shape[1]
     )
-    nengo.Connection(out_ensemble, recon_error, transform=-1)
+    nengo.Connection(out_ensemble.output, recon_error, transform=-1)
     nengo.Connection(input, recon_error)
     nengo.Connection(
         recon_error, conn2.learning_rule
@@ -93,6 +94,6 @@ with model:
     nengo.Connection(input, display_node, synapse=None)
 
     output = nengo.Node(display_func, size_in=X_train.shape[1])
-    nengo.Connection(out_ensemble, output, synapse=None)
+    nengo.Connection(out_ensemble.output, output, synapse=0.1)
     
     
